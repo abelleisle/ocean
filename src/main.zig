@@ -6,74 +6,14 @@ const zgpu = @import("zgpu");
 const wgpu = zgpu.wgpu;
 const zstbi = @import("zstbi");
 
+const App = @import("App.zig");
+
+const render = @import("render.zig");
+
 const content_dir = @import("build_options").content_dir;
 const window_title = "ziggy: glfw [hyprfloat]";
 
-const OceanState = struct {
-    allocator: std.mem.Allocator,
-
-    window: *glfw.Window,
-    gctx: *zgpu.GraphicsContext,
-
-    depth_tex: zgpu.TextureHandle,
-    depth_texv: zgpu.TextureViewHandle,
-};
-
-fn createDepthTexture(gctx: *zgpu.GraphicsContext) struct {
-    tex: zgpu.TextureHandle,
-    texv: zgpu.TextureViewHandle,
-} {
-    const tex = gctx.createTexture(.{
-        .usage = .{ .render_attachment = true },
-        .dimension = .tdim_2d,
-        .size = .{
-            .width = gctx.swapchain_descriptor.width,
-            .height = gctx.swapchain_descriptor.height,
-            .depth_or_array_layers = 1,
-        },
-        .format = .depth32_float,
-        .mip_level_count = 1,
-        .sample_count = 1,
-    });
-    const texv = gctx.createTextureView(tex, .{});
-    return .{ .tex = tex, .texv = texv };
-}
-
-fn create(allocator: std.mem.Allocator, window: *glfw.Window) !*OceanState {
-    const gctx = try zgpu.GraphicsContext.create(
-        allocator,
-        .{
-            .window = window,
-            .fn_getTime = @ptrCast(&glfw.getTime),
-            .fn_getFramebufferSize = @ptrCast(&glfw.Window.getFramebufferSize),
-            .fn_getWin32Window = @ptrCast(&glfw.getWin32Window),
-            .fn_getX11Display = @ptrCast(&glfw.getX11Display),
-            .fn_getX11Window = @ptrCast(&glfw.getX11Window),
-            .fn_getWaylandDisplay = @ptrCast(&glfw.getWaylandDisplay),
-            .fn_getWaylandSurface = @ptrCast(&glfw.getWaylandWindow),
-            .fn_getCocoaWindow = @ptrCast(&glfw.getCocoaWindow),
-        },
-        .{},
-    );
-    errdefer gctx.destroy(allocator);
-
-    //
-    // Create textures.
-    //
-    const depth = createDepthTexture(gctx);
-
-    const state = try allocator.create(OceanState);
-    state.* = .{ .allocator = allocator, .window = window, .gctx = gctx, .depth_tex = depth.tex, .depth_texv = depth.texv };
-
-    return state;
-}
-
-fn destroy(allocator: std.mem.Allocator, state: *OceanState) void {
-    state.gctx.destroy(allocator);
-    allocator.destroy(state);
-}
-
-fn update(state: *OceanState) void {
+fn update(state: *App) void {
     zgui.backend.newFrame(
         state.gctx.swapchain_descriptor.width,
         state.gctx.swapchain_descriptor.height,
@@ -98,7 +38,7 @@ fn update(state: *OceanState) void {
     zgui.end();
 }
 
-fn draw(state: *OceanState) void {
+fn draw(state: *App) void {
     const gctx = state.gctx;
 
     // const fb_w = gctx.swapchain_descriptor.width;
@@ -142,7 +82,7 @@ fn draw(state: *OceanState) void {
         gctx.destroyResource(state.depth_tex);
 
         // Create a new depth texture to match the new window size.
-        const depth = createDepthTexture(gctx);
+        const depth = render.texture.createDepthTexture(gctx);
         state.depth_tex = depth.tex;
         state.depth_texv = depth.texv;
     }
@@ -176,8 +116,8 @@ pub fn main() !void {
     zstbi.init(gpa);
     defer zstbi.deinit();
 
-    const state = try create(gpa, window);
-    defer destroy(gpa, state);
+    const app = try App.init(gpa, window);
+    defer app.deinit(gpa);
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
@@ -194,7 +134,7 @@ pub fn main() !void {
 
     zgui.backend.init(
         window,
-        state.gctx.device,
+        app.gctx.device,
         @intFromEnum(zgpu.GraphicsContext.swapchain_format),
         @intFromEnum(zgpu.wgpu.TextureFormat.undef),
     );
@@ -205,8 +145,8 @@ pub fn main() !void {
     while (!window.shouldClose() and window.getKey(.escape) != .press) {
         glfw.pollEvents();
 
-        update(state);
-        draw(state);
+        update(app);
+        draw(app);
     }
 }
 
