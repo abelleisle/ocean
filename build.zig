@@ -17,10 +17,6 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const zglfw = b.dependency("zglfw", .{});
-    const zopengl = b.dependency("zopengl", .{});
-    const zgui = b.dependency("zgui", .{ .shared = false, .with_implot = true, .backend = .glfw_opengl3, .target = target });
-
     const lib = b.addStaticLibrary(.{
         .name = "ocean",
         // In this case the main source file is merely a path, however, in more
@@ -42,11 +38,53 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // zglfw
+    const zglfw = b.dependency("zglfw", .{ .target = target });
     exe.root_module.addImport("zglfw", zglfw.module("root"));
-    exe.root_module.addImport("zopengl", zopengl.module("root"));
-    exe.root_module.addImport("zgui", zgui.module("root"));
     exe.linkLibrary(zglfw.artifact("glfw"));
+
+    // zgpu
+    @import("zgpu").addLibraryPathsTo(exe);
+    const zgpu = b.dependency("zgpu", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zgpu", zgpu.module("root"));
+    exe.linkLibrary(zgpu.artifact("zdawn"));
+
+    // zmath
+    const zmath = b.dependency("zmath", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zmath", zmath.module("root"));
+
+    // zgui
+    // const zgui = b.dependency("zgui", .{ .shared = false, .with_implot = true, .backend = .glfw_opengl3, .target = target });
+    const zgui = b.dependency("zgui", .{
+        .target = target,
+        .backend = .glfw_wgpu,
+    });
+    exe.root_module.addImport("zgui", zgui.module("root"));
     exe.linkLibrary(zgui.artifact("imgui"));
+
+    // zmesh
+    const zmesh = b.dependency("zmesh", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zmesh", zmesh.module("root"));
+    exe.linkLibrary(zmesh.artifact("zmesh"));
+
+    // zstbi
+    const zstbi = b.dependency("zstbi", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zstbi", zstbi.module("root"));
+    exe.linkLibrary(zstbi.artifact("zstbi"));
+
+    // zopengl
+    const zopengl = b.dependency("zopengl", .{
+        .target = target,
+    });
+    exe.root_module.addImport("zopengl", zopengl.module("root"));
 
     // We don't need this since we're compiling with Nix.
     // @import("system_sdk").addLibraryPathsTo(exe);

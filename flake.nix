@@ -5,7 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     zig-overlay = {
-      url = "github:mitchellh/zig-overlay/5cf2374c87cbe48139d1571360dcd7dd4807ef1c";
+      # url = "github:mitchellh/zig-overlay/5cf2374c87cbe48139d1571360dcd7dd4807ef1c";
+      url = "github:mitchellh/zig-overlay/751dd89e227c60e89c6362fc5cdd5cb814e3f1ba";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     zls-overlay = {
