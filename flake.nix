@@ -1,5 +1,5 @@
 {
-  description = "Zig ";
+  description = "Zig Ocean Water Simulator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -29,26 +29,42 @@
       zig-pre = zig-overlay.packages.${system}.master;
       zls = zls-overlay.packages.${system}.default;
 
-      zig = zig-pre.overrideAttrs (oldAttrs: {
-        installPhase = ''
-          ${oldAttrs.installPhase}
+      zig = if (isDarwin)
+        then zig-pre
+        else zig-pre.overrideAttrs (oldAttrs: {
+          installPhase = ''
+            ${oldAttrs.installPhase}
 
-          mv $out/bin/{zig,.zig-unwrapped}
+            mv $out/bin/{zig,.zig-unwrapped}
 
-          cat > $out/bin/zig <<EOF
-          #! ${lib.getExe pkgs.dash}
-          exec ${lib.getExe pkgs.proot} \\
-            --bind=${pkgs.coreutils}/bin/env:/usr/bin/env \\
-            $out/bin/.zig-unwrapped "\$@"
-          EOF
-          chmod +x $out/bin/zig
-        '';
-      });
+            cat > $out/bin/zig <<EOF
+            #! ${lib.getExe pkgs.dash}
+            exec ${lib.getExe pkgs.proot} \\
+              --bind=${pkgs.coreutils}/bin/env:/usr/bin/env \\
+              $out/bin/.zig-unwrapped "\$@"
+            EOF
+            chmod +x $out/bin/zig
+          '';
+        });
+      isDarwin = pkgs.stdenv.isDarwin;
     in {
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
+        nativeBuildInputs = [
           zig
-        ];
+        ] ++ pkgs.lib.optional (isDarwin) (let
+          inherit
+            (pkgs.darwin.apple_sdk.frameworks)
+              AppKit IOKit Metal CoreServices CoreGraphics Foundation IOSurface QuartzCore;
+        in [
+          AppKit
+          IOKit
+          Metal
+          CoreServices
+          CoreGraphics
+          Foundation
+          IOSurface
+          QuartzCore
+        ]);
 
         buildInputs = with pkgs; [
           zls
