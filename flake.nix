@@ -1,5 +1,5 @@
 {
-  description = "Zig ";
+  description = "Zig Ocean Water Simulator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
