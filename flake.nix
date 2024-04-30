@@ -23,8 +23,27 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-      zig = zig-overlay.packages.${system}.master;
+
+      lib = pkgs.lib;
+
+      zig-pre = zig-overlay.packages.${system}.master;
       zls = zls-overlay.packages.${system}.default;
+
+      zig = zig-pre.overrideAttrs (oldAttrs: {
+        installPhase = ''
+          ${oldAttrs.installPhase}
+
+          mv $out/bin/{zig,.zig-unwrapped}
+
+          cat > $out/bin/zig <<EOF
+          #! ${lib.getExe pkgs.dash}
+          exec ${lib.getExe pkgs.proot} \\
+            --bind=${pkgs.coreutils}/bin/env:/usr/bin/env \\
+            $out/bin/.zig-unwrapped "\$@"
+          EOF
+          chmod +x $out/bin/zig
+        '';
+      });
     in {
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
@@ -34,6 +53,10 @@
         buildInputs = with pkgs; [
           zls
           xorg.libX11
+
+          vulkan-headers
+          vulkan-loader
+          vulkan-tools
         ];
       };
     });
